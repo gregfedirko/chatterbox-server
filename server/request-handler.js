@@ -14,8 +14,20 @@ var config = fs.readFileSync("../client/scripts/config.js");
 var _ = fs.readFileSync("../client/bower_components/underscore/underscore-min.js");
 var jQuery = fs.readFileSync("../client/bower_components/jquery/jquery.min.js");
 
+
 var dataStorage = {results: []};
 var roomStorage = {results: []};
+
+
+//Read messages from .txt file
+fs.readFile("./messageData.txt", "utf-8", function(err,fileData){
+  if (err) {console.log("error loading saved messags");}
+  var savedMessages = fileData.split("_-_");
+  savedMessages.pop()
+  for (var i = 0; i < savedMessages.length; i++) {
+    dataStorage.results.push(JSON.parse(savedMessages[i]))
+  }
+})
 
 var handleRequest = function(request, response) {
   /* the 'request' argument comes from nodes http module. It includes info about the
@@ -33,7 +45,7 @@ var handleRequest = function(request, response) {
    * below about CORS. */
   var headers = defaultCorsHeaders;
 
-
+  var usernameParam = new RegExp("\/\?username=[a-zA-Z0-9]*");
 
 
   /* .writeHead() tells our server what HTTP status code to send back */
@@ -44,6 +56,14 @@ var handleRequest = function(request, response) {
     headers['Content-Type'] = "text/plain";
     response.end();
   }
+
+  if (request.method === "GET" && request.url === "/client/styles/styles.css"){
+    headers["Content-Type"] = "text/css";
+    response.writeHead(statusCode[0],headers);
+    response.write(css);
+    response.end();
+  }
+
   //Serve files from server
   if (request.method === "GET" && request.url === "/"){
     headers["Content-Type"] = "text/html";
@@ -52,14 +72,14 @@ var handleRequest = function(request, response) {
     response.end();
 
   }
-
-  if (request.method === "GET" && request.url === "/client/styles/style.css"){
-    headers["Content-Type"] = "text/css";
+  if (request.method === "GET" && usernameParam.test(request.url)){
+    console.log("IMPORTANT I AM BEING TRIGGERED")
+    headers["Content-Type"] = "text/html";
     response.writeHead(statusCode[0],headers);
-    response.write(css);
+    response.write(index);
     response.end();
-  }
 
+  }
   if (request.method === "GET" && request.url === "/client/scripts/app.js"){
     headers["Content-Type"] = "application/javascript";
     response.writeHead(statusCode[0],headers);
@@ -112,6 +132,9 @@ var handleRequest = function(request, response) {
     response.writeHead(statusCode[1], headers);
     request.on('data', function(data){
       dataStorage.results.push(JSON.parse(data));
+      fs.appendFile("./messageData.txt", data + '_-_',function(err) {
+        if (err) {console.log('error appending message data to file')}
+      })
     });
     response.end();
   }
@@ -125,7 +148,7 @@ var handleRequest = function(request, response) {
   }
     // response.write(JSON.stringify(data));
     //
-  if (!(request.url === "/classes/messages" || request.url === "/classes/room1") ) {
+  else if (!(request.url === "/classes/messages" || request.url === "/classes/room1" )) {
     response.writeHead(statusCode[2], headers);
     response.end();
   }
